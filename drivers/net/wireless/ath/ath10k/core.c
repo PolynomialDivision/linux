@@ -35,6 +35,8 @@ static bool uart_print;
 static bool skip_otp;
 static bool fw_diag_log;
 
+static bool ath10k_smallbuffers = false;
+
 /* frame mode values are mapped as per enum ath10k_hw_txrx_mode */
 unsigned int ath10k_frame_mode = ATH10K_HW_TXRX_NATIVE_WIFI;
 
@@ -47,6 +49,7 @@ module_param_named(cryptmode, ath10k_cryptmode_param, uint, 0644);
 module_param(uart_print, bool, 0644);
 module_param(skip_otp, bool, 0644);
 module_param(fw_diag_log, bool, 0644);
+module_param(smallbuffers, ath10k_smallbuffers, bool, 0644);
 module_param_named(frame_mode, ath10k_frame_mode, uint, 0644);
 module_param_named(coredump_mask, ath10k_coredump_mask, ulong, 0444);
 
@@ -58,6 +61,7 @@ MODULE_PARM_DESC(frame_mode,
 		 "Datapath frame mode (0: raw, 1: native wifi (default), 2: ethernet)");
 MODULE_PARM_DESC(coredump_mask, "Bitfield of what to include in firmware crash file");
 MODULE_PARM_DESC(fw_diag_log, "Diag based fw log debugging");
+MODULE_PARM_DESC(smallbuffers, "Reduce buffersize");
 
 static const struct ath10k_hw_params ath10k_hw_params_list[] = {
 	{
