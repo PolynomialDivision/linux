@@ -1316,6 +1316,7 @@ static inline bool ath10k_peer_stats_enabled(struct ath10k *ar)
 
 extern unsigned int ath10k_frame_mode;
 extern unsigned long ath10k_coredump_mask;
+extern bool ath10k_smallbuffers;
 
 void ath10k_core_napi_sync_disable(struct ath10k *ar);
 void ath10k_core_napi_enable(struct ath10k *ar);

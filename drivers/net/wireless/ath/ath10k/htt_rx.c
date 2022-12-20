@@ -792,7 +792,10 @@ int ath10k_htt_rx_alloc(struct ath10k_htt *htt)
 	/* XXX: The fill level could be changed during runtime in response to
 	 * the host processing latency. Is this really worth it?
 	 */
-	htt->rx_ring.size = HTT_RX_RING_SIZE;
+	if (ath10k_smallbuffers)
+		htt->rx_ring.size = 512;
+	else
+		htt->rx_ring.size = HTT_RX_RING_SIZE;
 	htt->rx_ring.size_mask = htt->rx_ring.size - 1;
 	htt->rx_ring.fill_level = ar->hw_params.rx_ring_fill_level;
 
