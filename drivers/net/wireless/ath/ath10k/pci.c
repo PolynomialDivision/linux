@@ -2484,6 +2484,32 @@ static void ath10k_pci_override_ce_config(struct ath10k *ar)
 	ar_pci->serv_to_pipe[15].pipenum = __cpu_to_le32(1);
 }
 
+static void ath10k_pci_reduce_ce_config_buffersize(struct ath10k *ar)
+{
+	struct ce_attr *attr;
+	struct ath10k_pci *ar_pci = ath10k_pci_priv(ar);
+
+	/* Override Host's Copy Engine 1 configuration */
+	attr = &ar_pci->attr[1];
+	attr->dest_nentries = 128;
+
+	/* Override Host's Copy Engine 2 configuration */
+	attr = &ar_pci->attr[2];
+	attr->dest_nentries = 64;
+
+	/* Override Host's Copy Engine 2 configuration */
+	attr = &ar_pci->attr[2];
+	attr->dest_nentries = 64;
+
+	/* Override Host's Copy Engine 5 configuration */
+	attr = &ar_pci->attr[5];
+	attr->dest_nentries = 128;
+
+	/* Override Host's Copy Engine 8 configuration */
+	attr = &ar_pci->attr[8];
+	attr->dest_nentries = 96;
+}
+
 int ath10k_pci_alloc_pipes(struct ath10k *ar)
 {
 	struct ath10k_pci *ar_pci = ath10k_pci_priv(ar);
@@ -3490,6 +3516,9 @@ int ath10k_pci_setup_resource(struct ath10k *ar)
 
 	if (QCA_REV_6174(ar) || QCA_REV_9377(ar))
 		ath10k_pci_override_ce_config(ar);
+
+	if (ath10k_smallbuffers)
+		ath10k_pci_reduce_ce_config_buffersize(ar);
 
 	ret = ath10k_pci_alloc_pipes(ar);
 	if (ret) {

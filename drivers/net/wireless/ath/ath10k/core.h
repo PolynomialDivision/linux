@@ -888,6 +888,12 @@ enum ath10k_crypt_mode {
 	ATH10K_CRYPT_MODE_SW,
 };
 
+enum ath10k_smallbuffers_mode {
+	ATH10K_SMALLBUFFERS_AUTO,
+	ATH10K_SMALLBUFFERS_ON,
+	ATH10K_SMALLBUFFERS_OFF,
+};
+
 static inline const char *ath10k_cal_mode_str(enum ath10k_cal_mode mode)
 {
 	switch (mode) {
@@ -1316,6 +1322,7 @@ static inline bool ath10k_peer_stats_enabled(struct ath10k *ar)
 
 extern unsigned int ath10k_frame_mode;
 extern unsigned long ath10k_coredump_mask;
+extern bool ath10k_smallbuffers;
 
 void ath10k_core_napi_sync_disable(struct ath10k *ar);
 void ath10k_core_napi_enable(struct ath10k *ar);

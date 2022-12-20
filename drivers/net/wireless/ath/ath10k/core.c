@@ -35,6 +35,9 @@ static bool uart_print;
 static bool skip_otp;
 static bool fw_diag_log;
 
+static unsigned int ath10k_smallbuffers_mode = ATH10K_SMALLBUFFERS_AUTO;
+bool ath10k_smallbuffers;
+
 /* frame mode values are mapped as per enum ath10k_hw_txrx_mode */
 unsigned int ath10k_frame_mode = ATH10K_HW_TXRX_NATIVE_WIFI;
 
@@ -47,6 +50,7 @@ module_param_named(cryptmode, ath10k_cryptmode_param, uint, 0644);
 module_param(uart_print, bool, 0644);
 module_param(skip_otp, bool, 0644);
 module_param(fw_diag_log, bool, 0644);
+module_param_named(smallbuffers, ath10k_smallbuffers_mode, uint, 0644);
 module_param_named(frame_mode, ath10k_frame_mode, uint, 0644);
 module_param_named(coredump_mask, ath10k_coredump_mask, ulong, 0444);
 
@@ -58,6 +62,7 @@ MODULE_PARM_DESC(frame_mode,
 		 "Datapath frame mode (0: raw, 1: native wifi (default), 2: ethernet)");
 MODULE_PARM_DESC(coredump_mask, "Bitfield of what to include in firmware crash file");
 MODULE_PARM_DESC(fw_diag_log, "Diag based fw log debugging");
+MODULE_PARM_DESC(smallbuffers, "Reduce buffersize (0: auto, 1: on, 2: off");
 
 static const struct ath10k_hw_params ath10k_hw_params_list[] = {
 	{
@@ -2921,6 +2926,32 @@ static int ath10k_core_copy_target_iram(struct ath10k *ar)
 	return 0;
 }
 
+#define ATH10K_SMALL_BUFFERS_THRESHOLD 128*1024*1024
+
+static int ath10k_core_check_smallbuffers(void)
+{
+	struct sysinfo si;
+
+	switch (ath10k_smallbuffers_mode) {
+	case ATH10K_SMALLBUFFERS_AUTO:
+		memset(&si, 0, sizeof(struct sysinfo));
+		si_meminfo(&si);
+		/* check if ram is below or equal to 128 MiB */
+		ath10k_smallbuffers = ((uint64_t)si.totalram * si.mem_unit <= ATH10K_SMALL_BUFFERS_THRESHOLD);
+		break;
+	case ATH10K_SMALLBUFFERS_ON:
+		ath10k_smallbuffers = true;
+		break;
+	case ATH10K_SMALLBUFFERS_OFF:
+		ath10k_smallbuffers = false;
+		break;
+	default:
+		break;
+	}
+
+	return 0;
+}
+
 int ath10k_core_start(struct ath10k *ar, enum ath10k_firmware_mode mode,
 		      const struct ath10k_fw_components *fw)
 {
@@ -3228,6 +3259,12 @@ int ath10k_core_start(struct ath10k *ar, enum ath10k_firmware_mode mode,
 	status = ath10k_hif_set_target_log_mode(ar, fw_diag_log);
 	if (status && status != -EOPNOTSUPP) {
 		ath10k_warn(ar, "set target log mode failed: %d\n", status);
+		goto err_hif_stop;
+	}
+
+	status = ath10k_core_check_smallbuffers();
+	if (status) {
+		ath10k_err(ar, "checking if driver should reduce buffers failed: %d\n", status);
 		goto err_hif_stop;
 	}
 
