@@ -123,6 +123,22 @@ struct ath_tx_status {
 	u32 duration;
 };
 
+/**
+ * struct ath_tx_status_ext
+ *
+ * Extension structure to pass additional / extended tx status info from
+ * tx completion to asynchronous tx status report. This is required because
+ * sk_buff is space-limited.
+ *
+ * @txpower_idx: Used tx power levels per mrr stage. The specified value
+ * 	corresponds an index specified by ieee80211_hw->txpower_ranges.
+ * 	An idx < 0 is considered as invalid and marks the end of valid
+ * 	entries in this list.
+ */
+struct ath_tx_status_ext {
+	s16 txpower_idx[4];
+};
+
 struct ath_rx_status {
 	u32 rs_tstamp;
 	u16 rs_datalen;

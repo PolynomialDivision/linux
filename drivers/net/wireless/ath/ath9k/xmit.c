@@ -51,7 +51,7 @@ static void ath_tx_send_normal(struct ath_softc *sc, struct ath_txq *txq,
 			       struct ath_atx_tid *tid, struct sk_buff *skb);
 static void ath_tx_complete(struct ath_softc *sc, struct sk_buff *skb,
 			    int tx_flags, struct ath_txq *txq,
-			    struct ieee80211_sta *sta);
+			    struct ieee80211_sta *sta, struct ath_buf *bf);
 static void ath_tx_complete_buf(struct ath_softc *sc, struct ath_buf *bf,
 				struct ath_txq *txq, struct list_head *bf_q,
 				struct ieee80211_sta *sta,
@@ -85,10 +85,31 @@ static void ath_tx_status(struct ieee80211_hw *hw, struct sk_buff *skb)
 {
 	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(skb);
 	struct ieee80211_sta *sta = info->status.status_driver_data[0];
+	struct ieee80211_tx_status status = { .sta = sta, .info = info, .skb = skb };
+	struct ath_tx_status_ext *status_ext = info->status.status_driver_data[1];
+	struct ieee80211_rate_status rates[IEEE80211_TX_MAX_RATES];
+	struct rate_info cur_ri;
+	u8 i = 0;
+
+	for (i = 0; i < IEEE80211_TX_MAX_RATES &&
+		    info->status.rates[i].idx >= 0 &&
+		    info->status.rates[i].count > 0; i++)
+	{
+		ieee80211_rate_get_rate_info(&info->status.rates[i],
+					     hw->wiphy, info->band, &cur_ri);
+		rates[i] = (struct ieee80211_rate_status){
+			.try_count = info->status.rates[i].count,
+			.rate_idx = cur_ri,
+			.tx_power_idx = status_ext ? status_ext->txpower_idx[i] : -1,
+		};
+	}
+	status.rates = rates;
+	status.n_rates = i;
 
 	if (info->flags & (IEEE80211_TX_CTL_REQ_TX_STATUS |
 			   IEEE80211_TX_STATUS_EOSP)) {
-		ieee80211_tx_status(hw, skb);
+
+		ieee80211_tx_status_ext(hw, &status);
 		return;
 	}
 
@@ -376,7 +397,7 @@ static void ath_tid_drain(struct ath_softc *sc, struct ath_txq *txq,
 		bf = fi->bf;
 
 		if (!bf) {
-			ath_tx_complete(sc, skb, ATH_TX_ERROR, txq, NULL);
+			ath_tx_complete(sc, skb, ATH_TX_ERROR, txq, NULL, NULL);
 			continue;
 		}
 
@@ -2449,13 +2470,15 @@ void ath_tx_cabq(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 
 static void ath_tx_complete(struct ath_softc *sc, struct sk_buff *skb,
 			    int tx_flags, struct ath_txq *txq,
-			    struct ieee80211_sta *sta)
+			    struct ieee80211_sta *sta, struct ath_buf *bf)
 {
 	struct ieee80211_tx_info *tx_info = IEEE80211_SKB_CB(skb);
 	struct ath_common *common = ath9k_hw_common(sc->sc_ah);
 	struct ieee80211_hdr * hdr = (struct ieee80211_hdr *)skb->data;
+	struct ath_tx_status_ext *status_ext = NULL;
 	int padpos, padsize;
 	unsigned long flags;
+	int i = 0;
 
 	ath_dbg(common, XMIT, "TX complete: skb: %p\n", skb);
 
@@ -2494,8 +2517,20 @@ static void ath_tx_complete(struct ath_softc *sc, struct sk_buff *skb,
 	}
 	spin_unlock_irqrestore(&sc->sc_pm_lock, flags);
 
+	status_ext = kzalloc(sizeof(struct ath_tx_status_ext), GFP_ATOMIC);
+	if (status_ext && bf) {
+		for (i = 0; i < IEEE80211_TX_MAX_RATES; i++) {
+			if (tx_info->status.rates[i].idx < 0 ||
+			    tx_info->status.rates[i].count == 0)
+				status_ext->txpower_idx[i] = -1;
+			else
+				status_ext->txpower_idx[i] = bf->txpower_idx[i];
+		}
+	}
+
 	ath_txq_skb_done(sc, txq, skb);
 	tx_info->status.status_driver_data[0] = sta;
+	tx_info->status.status_driver_data[1] = status_ext;
 	__skb_queue_tail(&txq->complete_q, skb);
 }
 
@@ -2529,7 +2564,7 @@ static void ath_tx_complete_buf(struct ath_softc *sc, struct ath_buf *bf,
 			complete(&sc->paprd_complete);
 	} else {
 		ath_debug_stat_tx(sc, bf, ts, txq, tx_flags);
-		ath_tx_complete(sc, skb, tx_flags, txq, sta);
+		ath_tx_complete(sc, skb, tx_flags, txq, sta, bf);
 	}
 skip_tx_complete:
 	/* At this point, skb (bf->bf_mpdu) is consumed...make sure we don't
