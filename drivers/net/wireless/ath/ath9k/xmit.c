@@ -173,6 +173,7 @@ static bool ath_merge_ratetbl(struct ieee80211_sta *sta, struct ath_buf *bf,
 		i = 0;
 	} else {
 		bf->rates[0] = tx_info->control.rates[0];
+		bf->txpower_idx[0] = tx_info->control.txpower_idx;
 		i = 1;
 	}
 
@@ -185,6 +186,8 @@ static bool ath_merge_ratetbl(struct ieee80211_sta *sta, struct ath_buf *bf,
 			bf->rates[i].count = ratetbl->rate[i].count_cts;
 		else
 			bf->rates[i].count = ratetbl->rate[i].count;
+
+		bf->txpower_idx[i] = ratetbl->rate[i].txpower_idx;
 	}
 
 	return true;
@@ -1169,7 +1172,7 @@ void ath_update_max_aggr_framelen(struct ath_softc *sc, int queue, int txop)
 }
 
 static u8 ath_get_rate_txpower(struct ath_softc *sc, struct ath_buf *bf,
-			       u8 rateidx, bool is_40, bool is_cck)
+			       u8 rateidx, s16 tpc_power, bool is_40, bool is_cck)
 {
 	u8 max_power;
 	struct sk_buff *skb;
@@ -1177,7 +1180,7 @@ static u8 ath_get_rate_txpower(struct ath_softc *sc, struct ath_buf *bf,
 	struct ieee80211_tx_info *info;
 	struct ath_hw *ah = sc->sc_ah;
 
-	if (sc->tx99_state || !ah->tpc_enabled)
+	if (sc->tx99_state || !ah->tpc_enabled || tpc_power < 0)
 		return MAX_RATE_POWER;
 
 	skb = bf->bf_mpdu;
@@ -1185,7 +1188,7 @@ static u8 ath_get_rate_txpower(struct ath_softc *sc, struct ath_buf *bf,
 	info = IEEE80211_SKB_CB(skb);
 
 	if (!AR_SREV_9300_20_OR_LATER(ah)) {
-		int txpower = fi->tx_power;
+		int txpower = tpc_power;
 
 		if (is_40) {
 			u8 power_ht40delta;
@@ -1231,10 +1234,10 @@ static u8 ath_get_rate_txpower(struct ath_softc *sc, struct ath_buf *bf,
 	} else if (!bf->bf_state.bfs_paprd) {
 		if (rateidx < 8 && (info->flags & IEEE80211_TX_CTL_STBC))
 			max_power = min_t(u8, ah->tx_power_stbc[rateidx],
-					  fi->tx_power);
+					  tpc_power);
 		else
 			max_power = min_t(u8, ah->tx_power[rateidx],
-					  fi->tx_power);
+					  tpc_power);
 	} else {
 		max_power = ah->paprd_training_power;
 	}
@@ -1319,7 +1322,8 @@ static void ath_buf_set_rate(struct ath_softc *sc, struct ath_buf *bf,
 			}
 
 			info->txpower[i] = ath_get_rate_txpower(sc, bf, rix,
-								is_40, false);
+						bf->txpower_idx[i], is_40, false);
+			bf->txpower_idx[i] = info->txpower[i];
 			continue;
 		}
 
@@ -1349,8 +1353,9 @@ static void ath_buf_set_rate(struct ath_softc *sc, struct ath_buf *bf,
 			phy, rate->bitrate * 100, len, rix, is_sp);
 
 		is_cck = IS_CCK_RATE(info->rates[i].Rate);
-		info->txpower[i] = ath_get_rate_txpower(sc, bf, rix, false,
-							is_cck);
+		info->txpower[i] = ath_get_rate_txpower(sc, bf, rix,
+					bf->txpower_idx[i], false, is_cck);
+		bf->txpower_idx[i] = info->txpower[i];
 	}
 
 	/* For AR5416 - RTS cannot be followed by a frame larger than 8K */
