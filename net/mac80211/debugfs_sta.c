@@ -15,6 +15,7 @@
 #include "debugfs_sta.h"
 #include "sta_info.h"
 #include "driver-ops.h"
+#include "linux/string.h"
 
 /* sta attributtes */
 
@@ -1034,6 +1035,78 @@ out:
 }
 LINK_STA_OPS(he_capa);
 
+static ssize_t sta_txpower_idx_read(struct file *file, char __user *userbuf,
+				    size_t count, loff_t *ppos)
+{
+	struct sta_info *sta = file->private_data;
+	char buf[10];
+	int ofs = 0;
+
+	if (sta->sta.txpwr.type == NL80211_TX_POWER_FIXED) {
+		ofs += scnprintf(buf, sizeof(buf), "fixed;%u\n",
+				 (u8)sta->sta.txpwr.power);
+	} else if (sta->sta.txpwr.type == NL80211_TX_POWER_LIMITED) {
+		ofs += scnprintf(buf, sizeof(buf), "limit;%u\n",
+				 (u8)sta->sta.txpwr.power);
+	} else {
+		ofs += scnprintf(buf, sizeof(buf), "auto;-1\n");
+	}
+
+	return simple_read_from_buffer(userbuf, count, ppos, buf, strlen(buf));
+}
+
+static ssize_t sta_txpower_idx_write(struct file *file, const char __user *userbuf,
+				     size_t count, loff_t *ppos)
+{
+	struct sta_info *sta = file->private_data;
+	struct ieee80211_hw *hw = &sta->local->hw;
+	char buf[10];
+	char *pos = buf;
+	char *mode, *pwr;
+	s16 txpower_idx = -1;
+
+	if (count > sizeof(buf))
+		return -EINVAL;
+
+	if (copy_from_user(buf, userbuf, count))
+		return -EFAULT;
+
+	buf[sizeof(buf) - 1] = '\0';
+
+	mode = strsep(&pos, ";");
+	pwr = strsep(&pos, ";");
+
+	if (!mode || !pwr || !sscanf(pwr, "%hd", &txpower_idx))
+		return -EINVAL;
+
+	if (!strcmp(mode, "auto")) {
+		sta->sta.txpwr.power = -1;
+		sta->sta.txpwr.type = NL80211_TX_POWER_AUTOMATIC;
+	} else {
+		u8 i, max_idx = 0;
+		for (i = 0; i < hw->n_txpower_ranges; i++) {
+			u8 idx = hw->txpower_ranges[i].start_idx +
+				 hw->txpower_ranges[i].n_levels - 1;
+
+			max_idx = max(idx, max_idx);
+		}
+
+		if (txpower_idx > max_idx)
+			return -EINVAL;
+
+		sta->sta.txpwr.power = txpower_idx;
+		if (!strcmp(mode, "limit"))
+			sta->sta.txpwr.type = NL80211_TX_POWER_LIMITED;
+		else if (!strncmp(mode, "fixed", 5))
+			sta->sta.txpwr.type = NL80211_TX_POWER_FIXED;
+		else
+			return -EINVAL;
+	}
+
+	return count;
+}
+STA_OPS_RW(txpower_idx);
+
 #define DEBUGFS_ADD(name) \
 	debugfs_create_file(#name, 0400, \
 		sta->debugfs_dir, sta, &sta_ ##name## _ops)
@@ -1081,6 +1154,10 @@ void ieee80211_sta_debugfs_add(struct sta_info *sta)
 
 	debugfs_create_xul("driver_buffered_tids", 0400, sta->debugfs_dir,
 			   &sta->driver_buffered_tids);
+
+	if (ieee80211_hw_check(&local->hw, SUPPORTS_TPC_PER_PACKET) ||
+	    ieee80211_hw_check(&local->hw, SUPPORTS_TPC_PER_MRR))
+		DEBUGFS_ADD(txpower_idx);
 
 	drv_sta_add_debugfs(local, sdata, &sta->sta, sta->debugfs_dir);
 }

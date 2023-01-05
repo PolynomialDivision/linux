@@ -2155,13 +2155,14 @@ struct ieee80211_sta_rates {
  *
  * Used to configure txpower for station.
  *
- * @power: indicates the tx power, in dBm, to be used when sending data frames
- *	to the STA.
+ * @power: indicates the tx-power index, according to the supported power levels,
+ *	to be used when sending data frames to the STA.
  * @type: In particular if TPC %type is NL80211_TX_POWER_LIMITED then tx power
  *	will be less than or equal to specified from userspace, whereas if TPC
- *	%type is NL80211_TX_POWER_AUTOMATIC then it indicates default tx power.
- *	NL80211_TX_POWER_FIXED is not a valid configuration option for
- *	per peer TPC.
+ *	%type is NL80211_TX_POWER_AUTOMATIC then it indicates default tx power
+ *	if TPC is not supported or to be determined by TPC algorithm if supported.
+ *	NL80211_TX_POWER_FIXED indicates the tx-power idx in @power is used
+ *	regardless of default or TPC algorithm selection.
  */
 struct ieee80211_sta_txpwr {
 	s16 power;
