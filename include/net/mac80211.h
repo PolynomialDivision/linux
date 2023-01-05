@@ -1052,6 +1052,10 @@ ieee80211_rate_get_vht_nss(const struct ieee80211_tx_rate *rate)
 	return (rate->idx >> 4) + 1;
 }
 
+void ieee80211_rate_get_rate_info(const struct ieee80211_tx_rate *rate,
+								  struct wiphy *wiphy, u8 band,
+								  struct rate_info *rate_info);
+
 /**
  * struct ieee80211_tx_info - skb transmit information
  *

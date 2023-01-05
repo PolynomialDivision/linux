@@ -4915,6 +4915,39 @@ u16 ieee80211_encode_usf(int listen_interval)
 	return (u16) listen_interval;
 }
 
+void ieee80211_rate_get_rate_info(const struct ieee80211_tx_rate *rate,
+								  struct wiphy *wiphy, u8 band,
+								  struct rate_info *rate_info)
+{
+	memset(rate_info, 0, sizeof(struct rate_info));
+
+	if (rate->flags & IEEE80211_TX_RC_MCS) { /* 802.11n */
+		rate_info->flags |= RATE_INFO_FLAGS_MCS;
+		rate_info->mcs = rate->idx;
+	} else if (rate->flags & IEEE80211_TX_RC_VHT_MCS) { /* 802.11ac */
+		rate_info->flags |= RATE_INFO_FLAGS_VHT_MCS;
+		rate_info->mcs = ieee80211_rate_get_vht_mcs(rate);
+		rate_info->nss = ieee80211_rate_get_vht_nss(rate);
+	} else { /* 802.11a/b/g */
+		rate_info->legacy = wiphy->bands[band]->bitrates[rate->idx].bitrate;
+		rate_info->bw = RATE_INFO_BW_20;
+		return;
+	}
+
+	if (rate->flags & IEEE80211_TX_RC_40_MHZ_WIDTH)
+		rate_info->bw = RATE_INFO_BW_40;
+	else if (rate->flags & IEEE80211_TX_RC_80_MHZ_WIDTH)
+		rate_info->bw = RATE_INFO_BW_80;
+	else if (rate->flags & IEEE80211_TX_RC_160_MHZ_WIDTH)
+		rate_info->bw = RATE_INFO_BW_160;
+	else
+		rate_info->bw = RATE_INFO_BW_20;
+	
+	if (rate->flags & IEEE80211_TX_RC_SHORT_GI)
+		rate_info->flags |= RATE_INFO_FLAGS_SHORT_GI;
+}
+EXPORT_SYMBOL(ieee80211_rate_get_rate_info);
+
 u8 ieee80211_ie_len_eht_cap(struct ieee80211_sub_if_data *sdata, u8 iftype)
 {
 	const struct ieee80211_sta_he_cap *he_cap;
