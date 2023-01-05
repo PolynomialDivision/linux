@@ -97,6 +97,13 @@ static const struct ieee80211_tpt_blink ath9k_tpt_blink[] = {
 };
 #endif
 
+struct ieee80211_hw_txpower_range ath9k_txpwr_range = {
+	.start_idx = 0,
+	.start_pwr = 0,
+	.n_levels = 64,
+	.pwr_step = 2
+};
+
 static int __init set_use_msi(const struct dmi_system_id *dmi)
 {
 	ath9k_use_msi = 1;
@@ -962,6 +969,7 @@ static void ath9k_set_hw_capab(struct ath_softc *sc, struct ieee80211_hw *hw)
 	ieee80211_hw_set(hw, HOST_BROADCAST_PS_BUFFERING);
 	ieee80211_hw_set(hw, SUPPORT_FAST_XMIT);
 	ieee80211_hw_set(hw, SUPPORTS_CLONED_SKBS);
+	ieee80211_hw_set(hw, SUPPORTS_TPC_PER_MRR);
 
 	if (ath9k_ps_enable)
 		ieee80211_hw_set(hw, SUPPORTS_PS);
@@ -1047,6 +1055,9 @@ static void ath9k_set_hw_capab(struct ath_softc *sc, struct ieee80211_hw *hw)
 	wiphy_ext_feature_set(hw->wiphy,
 			      NL80211_EXT_FEATURE_MULTICAST_REGISTRATIONS);
 	wiphy_ext_feature_set(hw->wiphy, NL80211_EXT_FEATURE_CAN_REPLACE_PTK0);
+
+	hw->txpower_ranges = &ath9k_txpwr_range;
+	hw->n_txpower_ranges = 1;
 }
 
 int ath9k_init_device(u16 devid, struct ath_softc *sc,
