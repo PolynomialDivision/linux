@@ -2627,6 +2627,13 @@ struct ieee80211_txq {
  * @IEEE80211_HW_MLO_MCAST_MULTI_LINK_TX: Hardware/driver handles transmitting
  *	multicast frames on all links, mac80211 should not do that.
  *
+ * @IEEE80211_HW_SUPPORTS_TPC_PER_PACKET: The hardware/driver supports transmit
+ *		power control (TPC) with one power level per data packet.
+ *
+ * @IEEE80211_HW_SUPPORTS_TPC_PER_MRR: The hardware/driver supports transmit
+ *		power control (TPC) with individual power levels for each
+ *		multi-rate-retry (mrr) stage per packet.
+ *
  * @NUM_IEEE80211_HW_FLAGS: number of hardware flags, used for sizing arrays
  */
 enum ieee80211_hw_flags {
@@ -2684,6 +2691,8 @@ enum ieee80211_hw_flags {
 	IEEE80211_HW_SUPPORTS_CONC_MON_RX_DECAP,
 	IEEE80211_HW_DETECTS_COLOR_COLLISION,
 	IEEE80211_HW_MLO_MCAST_MULTI_LINK_TX,
+	IEEE80211_HW_SUPPORTS_TPC_PER_PACKET,
+	IEEE80211_HW_SUPPORTS_TPC_PER_MRR,
 
 	/* keep last, obviously */
 	NUM_IEEE80211_HW_FLAGS
