@@ -193,6 +193,16 @@ struct minstrel_ht_sta {
 
 	/* MCS rate group info and statistics */
 	struct minstrel_mcs_group_data groups[MINSTREL_GROUPS_NB];
+
+#ifdef CONFIG_MAC80211_DEBUGFS
+	/*
+	 * enable fixed tx-power processing per STA
+	 *   - write static index to debugfs:ieee80211/phyX/netdev:wlanY/stations/<MAC>/rc_fixed_txpower_idx
+	 *   - write -1 to enable RC processing again
+	 *   - setting will be applied on next update
+	*/
+	u32 fixed_txpower_idx;
+#endif
 };
 
 void minstrel_ht_add_sta_debugfs(void *priv, void *priv_sta, struct dentry *dir);

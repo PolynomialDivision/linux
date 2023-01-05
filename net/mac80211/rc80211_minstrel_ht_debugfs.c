@@ -329,8 +329,14 @@ static const struct file_operations minstrel_ht_stat_csv_fops = {
 void
 minstrel_ht_add_sta_debugfs(void *priv, void *priv_sta, struct dentry *dir)
 {
+	struct minstrel_ht_sta *mi = priv_sta;
+
 	debugfs_create_file("rc_stats", 0444, dir, priv_sta,
 			    &minstrel_ht_stat_fops);
 	debugfs_create_file("rc_stats_csv", 0444, dir, priv_sta,
 			    &minstrel_ht_stat_csv_fops);
+
+	mi->fixed_txpower_idx = (u32)-1;
+	debugfs_create_u32("rc_fixed_txpower_idx", S_IRUGO | S_IWUGO,
+					   dir, &mi->fixed_txpower_idx);
 }

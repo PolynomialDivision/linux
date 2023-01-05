@@ -1487,6 +1487,14 @@ minstrel_ht_set_rate(struct minstrel_priv *mp, struct minstrel_ht_sta *mi,
 
 	ratetbl->rate[offset].idx = idx;
 	ratetbl->rate[offset].flags = flags;
+
+#ifdef CONFIG_MAC80211_DEBUGFS
+	if (mi->fixed_txpower_idx != -1) {
+		ratetbl->rate[offset].txpower_idx = mi->fixed_txpower_idx;
+		return;
+	}
+#endif
+	ratetbl->rate[offset].txpower_idx = -1;
 }
 
 static inline int
@@ -1605,8 +1613,14 @@ minstrel_ht_get_rate(void *priv, struct ieee80211_sta *sta, void *priv_sta,
 	info->flags |= mi->tx_flags;
 
 #ifdef CONFIG_MAC80211_DEBUGFS
+	if (mi->fixed_txpower_idx != -1)
+		info->control.txpower_idx = mi->fixed_txpower_idx;
+
 	if (mp->fixed_rate_idx != -1)
 		return;
+#else
+	/* HINT: Pass -1 to indicate 'ignore txpower' */
+	info->control.txpower_idx = -1;
 #endif
 
 	/* Don't use EAPOL frames for sampling on non-mrr hw */
