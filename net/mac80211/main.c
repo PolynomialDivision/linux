@@ -33,6 +33,11 @@
 #include "led.h"
 #include "debugfs.h"
 
+bool allow_ap_scan;
+module_param(allow_ap_scan, bool, 0644);
+MODULE_PARM_DESC(allow_ap_scan,
+		 "Support scanning in AP mode regardless of driver support.");
+
 void ieee80211_configure_filter(struct ieee80211_local *local)
 {
 	u64 mc;
